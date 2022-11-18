@@ -42,23 +42,20 @@ type domainTree struct {
 }
 
 func (d *domainTree) has(s string) (ok bool) {
-	dr := domainReverse(s)
+        dr := domainReverse(s)
 
-	d.RLock()
-	pfx, _, ok := d.t.LongestPrefix(dr)
-	d.RUnlock()
+        d.RLock()
+        pfx, _, ok := d.t.LongestPrefix(dr)
+        d.RUnlock()
 
 	if ok {
-		if pfx == dr {
-			return
-		}
-
-		if domainLevel(pfx) == domainLevel(dr) {
+		pfx_l := domainLevel(pfx) - 1
+		if strings.Split(pfx, ".")[pfx_l] != strings.Split(dr, ".")[pfx_l] {
 			return false
 		}
 	}
 
-	return
+        return
 }
 
 func (d *domainTree) loadFile(path string) (i, s int, err error) {
@@ -95,7 +92,8 @@ func (d *domainTree) loadList(domains []string) (i, s int, err error) {
 
 	for _, dm := range domains {
 		sdm, _, ok := t.LongestPrefix(dm)
-		if ok && domainLevel(dm) != domainLevel(sdm) {
+		sdm_l := domainLevel(sdm)
+		if ok && strings.Split(sdm, ".")[sdm_l-1] == strings.Split(dm, ".")[sdm_l-1] {
 			s++
 			continue
 		}
