@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	dnstap "github.com/dnstap/golang-dnstap"
-	"github.com/golang/protobuf/proto"
 	"github.com/miekg/dns"
+	"google.golang.org/protobuf/proto"
 )
 
 type dnstapCfg struct {

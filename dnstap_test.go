@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	dnstap "github.com/dnstap/golang-dnstap"
 	"github.com/miekg/dns"

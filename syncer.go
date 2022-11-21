@@ -181,8 +181,6 @@ func (s *syncer) syncAll() {
 
 		s.syncCb(p, new, nil)
 	}
-
-	return
 }
 
 func (s *syncer) fetchRemote(p string) (es []*cacheEntry, err error) {

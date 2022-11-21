@@ -9,19 +9,19 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/any"
-	api "github.com/osrg/gobgp/api"
-	gobgp "github.com/osrg/gobgp/pkg/server"
+	apb "google.golang.org/protobuf/types/known/anypb"
+
+	api "github.com/osrg/gobgp/v3/api"
+	gobgp "github.com/osrg/gobgp/v3/pkg/server"
 )
 
 type bgpCfg struct {
-	AS       uint32
-	RouterID string
-	NextHop  string
+	AS          uint32
+	RouterID    string
+	NextHop     string
 	NextHopIPv6 string
-	SourceIP string
-	SourceIF string
+	SourceIP    string
+	SourceIF    string
 
 	Peers []string
 	IPv6  bool
@@ -53,7 +53,7 @@ func newBgp(c *bgpCfg) (b *bgpServer, err error) {
 
 	if err = b.s.StartBgp(context.Background(), &api.StartBgpRequest{
 		Global: &api.Global{
-			As:         c.AS,
+			Asn:        c.AS,
 			RouterId:   c.RouterID,
 			ListenPort: -1,
 		},
@@ -61,7 +61,11 @@ func newBgp(c *bgpCfg) (b *bgpServer, err error) {
 		return
 	}
 
-	if err = b.s.MonitorPeer(context.Background(), &api.MonitorPeerRequest{}, func(p *api.Peer) { log.Println(p) }); err != nil {
+	if err = b.s.WatchEvent(context.Background(), &api.WatchEventRequest{Peer: &api.WatchEventRequest_Peer{}}, func(r *api.WatchEventResponse) {
+		if p := r.GetPeer(); p != nil && p.Type == api.WatchEventResponse_PeerEvent_STATE {
+			log.Println(p)
+		}
+	}); err != nil {
 		return
 	}
 
@@ -88,7 +92,7 @@ func (b *bgpServer) addPeer(addr string) (err error) {
 	p := &api.Peer{
 		Conf: &api.PeerConf{
 			NeighborAddress: addr,
-			PeerAs:          b.c.AS,
+			PeerAsn:         b.c.AS,
 		},
 
 		AfiSafis: []*api.AfiSafi{
@@ -149,12 +153,12 @@ func (b *bgpServer) getPath(ip net.IP) *api.Path {
 		pfxLen = 128
 	}
 
-	nlri, _ := ptypes.MarshalAny(&api.IPAddressPrefix{
+	nlri, _ := apb.New(&api.IPAddressPrefix{
 		Prefix:    ip.String(),
 		PrefixLen: pfxLen,
 	})
 
-	a1, _ := ptypes.MarshalAny(&api.OriginAttribute{
+	a1, _ := apb.New(&api.OriginAttribute{
 		Origin: 0,
 	})
 
@@ -166,21 +170,21 @@ func (b *bgpServer) getPath(ip net.IP) *api.Path {
 		}
 
 		if b.c.NextHopIPv6 != "" {
-		  nh = b.c.NextHopIPv6
+			nh = b.c.NextHopIPv6
 		} else {
-		  nh = "fd00::1"
+			nh = "fd00::1"
 		}
 
-		v6Attrs, _ := ptypes.MarshalAny(&api.MpReachNLRIAttribute{
-			Family:		v6Family,
-			NextHops:	[]string{nh},
-			Nlris:		[]*any.Any{nlri},
+		v6Attrs, _ := apb.New(&api.MpReachNLRIAttribute{
+			Family:   v6Family,
+			NextHops: []string{nh},
+			Nlris:    []*apb.Any{nlri},
 		})
 
 		return &api.Path{
 			Family: v6Family,
 			Nlri:   nlri,
-			Pattrs: []*any.Any{a1, v6Attrs},
+			Pattrs: []*apb.Any{a1, v6Attrs},
 		}
 	} else {
 
@@ -192,17 +196,17 @@ func (b *bgpServer) getPath(ip net.IP) *api.Path {
 			nh = b.c.RouterID
 		}
 
-		a2, _ := ptypes.MarshalAny(&api.NextHopAttribute{
+		a2, _ := apb.New(&api.NextHopAttribute{
 			NextHop: nh,
 		})
 
 		return &api.Path{
-	  	Family: &api.Family{
-	  		Afi:  api.Family_AFI_IP,
-	  		Safi: api.Family_SAFI_UNICAST,
+			Family: &api.Family{
+				Afi:  api.Family_AFI_IP,
+				Safi: api.Family_SAFI_UNICAST,
 			},
 			Nlri:   nlri,
-			Pattrs: []*any.Any{a1, a2},
+			Pattrs: []*apb.Any{a1, a2},
 		}
 	}
 }
